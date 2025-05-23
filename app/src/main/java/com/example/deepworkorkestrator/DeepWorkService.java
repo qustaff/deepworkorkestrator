@@ -1,100 +1,150 @@
 package com.example.deepworkorkestrator;
 
-import android.annotation.SuppressLint;
-import android.app.Service;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.Service;
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
+import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.media.AudioManager;
-import android.net.Uri;
+import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.provider.Settings;
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.Set;
 
 public class DeepWorkService extends Service {
-    private SharedPreferences prefs;
-    private NotificationManager notifManager;
-    private AudioManager audioManager;
-    private List<String> blockedApps;
-    private String playlistUri;
-    private Timer timer;
 
-    @SuppressLint("ForegroundServiceType")
+    private static final String CHANNEL_ID = "deepwork_channel";
+    private static final int NOTIFICATION_ID = 1;
+
+    private Handler handler;
+    private Runnable appCheckRunnable;
+    private boolean isRunning = false;
+
     @Override
     public void onCreate() {
         super.onCreate();
-        prefs = getSharedPreferences("deepwork", MODE_PRIVATE);
-        notifManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-
-        // Pobierz URI playlisty z ustawień użytkownika
-        playlistUri = prefs.getString("playlist_uri", "");
-        // Pobierz listę blokowanych aplikacji z ustawień (rozdzielone przecinkami)
-        String blockedRaw = prefs.getString("blocked_apps", "");
-        blockedApps = Arrays.asList(blockedRaw.split(","));
-
-        // Notyfikacja foreground service (wymagane od Android 8+)
-        Notification notification = new Notification.Builder(this)
-                .setContentTitle("Deep Work aktywny")
-                .setContentText("Tryb głębokiej pracy jest włączony")
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .build();
-        startForeground(1, notification);
-
-        startScheduler();
-    }
-
-    private void startScheduler() {
-        timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                checkCalendarAndStart();
-            }
-        }, 0, 60 * 1000); // Sprawdza co minutę
-    }
-
-    // Tu dodaj logikę sprawdzania kalendarza i aktywowania trybu deep work
-    private void checkCalendarAndStart() {
-        // TODO: Pobierz wydarzenia z kalendarza przez ContentResolver
-        // Jeśli trwa blok deep work (np. tytuł zawiera słowo kluczowe i aktualny czas się mieści)
-        // to wywołaj activateDeepWork()
-        // Po zakończeniu bloku wywołaj deactivateDeepWork()
-    }
-
-    private void activateDeepWork() {
-        // Wyciszenie powiadomień i aktywacja trybu DND
-        notifManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE);
-
-        // Odtwarzanie playlisty Spotify, jeśli URI nie jest puste
-        if (playlistUri != null && !playlistUri.isEmpty()) {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(playlistUri));
-            intent.setPackage("com.spotify.music");
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        }
-
-        // TODO: Monitorowanie uruchamianych aplikacji i blokowanie wybranych (UsageStatsManager + BlockActivity)
-    }
-
-    private void deactivateDeepWork() {
-        // Przywracanie normalnych powiadomień
-        notifManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
-
-        // TODO: Zatrzymać blokadę aplikacji, zapisać podsumowanie sesji itp.
+        startForegroundServiceWithNotification();
+        setDoNotDisturb();
+        startAppBlocker();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (timer != null) timer.cancel();
-        deactivateDeepWork();
+        resetDoNotDisturb();
+        stopAppBlocker();
+        stopForeground(true);
     }
 
+    private void startForegroundServiceWithNotification() {
+        createNotificationChannel();
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Deep Work")
+                .setContentText("Tryb Deep Work jest aktywny")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setOngoing(true)
+                .build();
+        startForeground(NOTIFICATION_ID, notification);
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID, "Deep Work Channel", NotificationManager.IMPORTANCE_LOW);
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void setDoNotDisturb() {
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null && notificationManager.isNotificationPolicyAccessGranted()) {
+            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE);
+        }
+        // else: nie rób nic, nie otwieraj ustawień!
+    }
+
+    private void resetDoNotDisturb() {
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null && notificationManager.isNotificationPolicyAccessGranted()) {
+            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+        }
+        // else: NIC nie rób, nie otwieraj ustawień
+    }
+
+    private void startAppBlocker() {
+        if (handler == null) handler = new Handler();
+        isRunning = true;
+        appCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isRunning) {
+                    checkAndBlockApps();
+                    handler.postDelayed(this, 1000);
+                }
+            }
+        };
+        handler.post(appCheckRunnable);
+    }
+
+    private void stopAppBlocker() {
+        isRunning = false;
+        if (handler != null && appCheckRunnable != null) {
+            handler.removeCallbacks(appCheckRunnable);
+        }
+    }
+
+    // Pobierz listę pakietów do zablokowania z ustawień (SharedPreferences)
+    private Set<String> getBlockedPackages() {
+        return getSharedPreferences("settings", MODE_PRIVATE)
+                .getStringSet("blocked_packages", null);
+    }
+
+    private void checkAndBlockApps() {
+        Set<String> blockedPackages = getBlockedPackages();
+        if (blockedPackages == null || blockedPackages.isEmpty()) return;
+
+        String topPackage = getTopPackageName();
+        if (blockedPackages.contains(topPackage)) {
+            Intent lockIntent = new Intent(this, BlockActivity.class);
+            lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(lockIntent);
+        }
+    }
+
+    private String getTopPackageName() {
+        long end = System.currentTimeMillis();
+        long begin = end - 10000;
+        UsageStatsManager usm = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+        if (usm != null) {
+            List<UsageStats> stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, begin, end);
+            if (stats != null && !stats.isEmpty()) {
+                UsageStats recentStat = null;
+                for (UsageStats usageStats : stats) {
+                    if (recentStat == null || usageStats.getLastTimeUsed() > recentStat.getLastTimeUsed()) {
+                        recentStat = usageStats;
+                    }
+                }
+                if (recentStat != null) {
+                    return recentStat.getPackageName();
+                }
+            }
+        }
+        return "";
+    }
+
+    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return null;
