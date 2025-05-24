@@ -1,41 +1,49 @@
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black">
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="16dp"
+    android:background="#F44336">
 
     <TextView
-        android:id="@+id/blockInfo"
-        android:text="Deep Work aktywny. Podaj hasło blokady."
-        android:textColor="@android:color/white"
-        android:textSize="20sp"
-        android:layout_width="0dp"
+        android:id="@+id/blockedAppText"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="60dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:text="Ta aplikacja jest zablokowana\npodczas Deep Work!"
+        android:textSize="24sp"
+        android:textColor="#FFFFFF"
+        android:gravity="center"
+        android:layout_marginBottom="32dp"/>
 
     <EditText
         android:id="@+id/passwordInput"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Hasło"
+        android:hint="Wprowadź hasło aby odblokować"
         android:inputType="textPassword"
-        app:layout_constraintTop_toBottomOf="@id/blockInfo"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp"
-        android:layout_marginHorizontal="32dp"/>
+        android:textColorHint="#CCFFFFFF"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="#FFFFFF"/>
 
     <Button
-        android:id="@+id/unlockBtn"
-        android:text="Odblokuj"
-        android:layout_width="0dp"
+        android:id="@+id/unlockButton"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/passwordInput"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp"/>
-</androidx.constraintlayout.widget.ConstraintLayout>
+        android:text="Odblokuj"
+        android:textColor="#F44336"
+        android:backgroundTint="#FFFFFF"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/exitButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Wyjdź"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#CC000000"
+        android:alpha="0.8"/>
+
+</LinearLayout>

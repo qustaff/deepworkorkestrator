@@ -10,20 +10,26 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.view.accessibility.AccessibilityManager;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private MaterialButton startButton;
     private MaterialButton stopButton;
     private MaterialButton dndPermissionButton;
+    private MaterialButton accessibilityButton;
     private ImageButton settingsButton;
     private TextView statusText;
     private NotificationManager notificationManager;
     private boolean isDeepWorkActive = false;
+    private AppBlocker appBlocker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
         initializeViews();
         setupClickListeners();
+        appBlocker = new AppBlocker(this);
         updateUI();
     }
 
@@ -45,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
         startButton = findViewById(R.id.startButton);
         stopButton = findViewById(R.id.stopButton);
         dndPermissionButton = findViewById(R.id.dndPermissionButton);
+        accessibilityButton = findViewById(R.id.accessibilityButton);
         statusText = findViewById(R.id.statusText);
         settingsButton = findViewById(R.id.settingsButton);
 
@@ -55,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
         startButton.setOnClickListener(v -> startDeepWork());
         stopButton.setOnClickListener(v -> stopDeepWork());
         dndPermissionButton.setOnClickListener(v -> requestDoNotDisturbPermission());
+        accessibilityButton.setOnClickListener(v -> requestAccessibilityPermission());
         settingsButton.setOnClickListener(v -> openSettings());
     }
 
@@ -64,17 +73,26 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        if (!isAccessibilityServiceEnabled()) {
+            showToast("Wymagane uprawnienie do monitorowania aplikacji");
+            requestAccessibilityPermission();
+            return;
+        }
+
         if (isDeepWorkActive) {
             showToast("Deep Work jest już aktywne");
             return;
         }
 
         try {
+            getSharedPreferences("deepwork", MODE_PRIVATE)
+                .edit().putBoolean("is_blocking", true).apply();
             enableDoNotDisturbMode();
             isDeepWorkActive = true;
             updateStatusText("Deep Work: aktywne");
             launchSpotifyPlaylist();
             startDeepWorkService();
+            startAppBlocker();
             showToast("Deep Work rozpoczęte! Tryb 'Nie przeszkadzać' włączony");
         } catch (Exception e) {
             handleError("Błąd podczas uruchamiania Deep Work", e);
@@ -87,10 +105,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopDeepWork() {
         try {
+            getSharedPreferences("deepwork", MODE_PRIVATE)
+                .edit().putBoolean("is_blocking", false).apply();
             disableDoNotDisturbMode();
             isDeepWorkActive = false;
             updateStatusText("Deep Work: wyłączone");
             stopDeepWorkService();
+            stopAppBlocker();
             showToast("Deep Work zatrzymane. Tryb 'Nie przeszkadzać' wyłączony");
         } catch (Exception e) {
             handleError("Błąd podczas zatrzymywania Deep Work", e);
@@ -159,6 +180,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private boolean isAccessibilityServiceEnabled() {
+        AccessibilityManager am = (AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
+        List<AccessibilityServiceInfo> enabledServices = am.getEnabledAccessibilityServiceList(
+                AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
+        for (AccessibilityServiceInfo service : enabledServices) {
+            if (service.getId().contains(getPackageName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void requestAccessibilityPermission() {
+        Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+        startActivity(intent);
+        showToast("Znajdź 'Deep Work Orkestrator' i włącz dostęp");
+    }
+
     private void enableDoNotDisturbMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (notificationManager.isNotificationPolicyAccessGranted()) {
@@ -189,8 +228,19 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void startAppBlocker() {
+        // NIE URUCHAMIAMY AccessibilityService ręcznie!
+        // Usługa powinna być aktywowana przez użytkownika w ustawieniach ułatwień dostępu.
+    }
+
+    private void stopAppBlocker() {
+        // NIE ZATRZYMUJEMY AccessibilityService ręcznie!
+        // Usługa powinna być zarządzana przez system Android.
+    }
+
     private void updateUI() {
         updateDndPermissionButton();
+        updateAccessibilityButton();
         updateButtonStates();
 
         if (!isDeepWorkActive) {
@@ -206,11 +256,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void updateAccessibilityButton() {
+        if (isAccessibilityServiceEnabled()) {
+            accessibilityButton.setVisibility(View.GONE);
+        } else {
+            accessibilityButton.setVisibility(View.VISIBLE);
+        }
+    }
+
     private void updateButtonStates() {
+        // Przycisk Start - widoczny zawsze, ale wyłączony gdy Deep Work jest aktywne
         startButton.setEnabled(!isDeepWorkActive);
-        stopButton.setEnabled(isDeepWorkActive);
         startButton.setAlpha(isDeepWorkActive ? 0.5f : 1.0f);
-        stopButton.setAlpha(isDeepWorkActive ? 1.0f : 0.5f);
+
+        // Przycisk Stop - widoczny tylko gdy Deep Work jest aktywne
+        if (isDeepWorkActive) {
+            stopButton.setVisibility(View.VISIBLE);
+        } else {
+            stopButton.setVisibility(View.GONE);
+        }
     }
 
     private void updateStatusText(String status) {

@@ -4,41 +4,74 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.content.SharedPreferences;
 import android.widget.Toast;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Map;
 
 public class SettingsActivity extends Activity {
-    private EditText keywordsEdit, playlistEdit, appsEdit, passwordEdit;
+    private LinearLayout appsContainer;
+    private EditText passwordEdit;
     private Button saveBtn;
+    private SharedPreferences prefs;
+    private Set<String> selectedApps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        keywordsEdit = findViewById(R.id.keywordsEdit);
-        playlistEdit = findViewById(R.id.playlistEdit);
-        appsEdit = findViewById(R.id.appsEdit);
+        prefs = getSharedPreferences("deepwork", MODE_PRIVATE);
+        selectedApps = new HashSet<>();
+
+        appsContainer = findViewById(R.id.appsContainer);
         passwordEdit = findViewById(R.id.passwordEdit);
         saveBtn = findViewById(R.id.saveBtn);
 
-        SharedPreferences prefs = getSharedPreferences("deepwork", MODE_PRIVATE);
-
         // Load saved settings
-        keywordsEdit.setText(prefs.getString("calendar_keywords", ""));
-        playlistEdit.setText(prefs.getString("playlist_uri", ""));
-        appsEdit.setText(prefs.getString("blocked_apps", ""));
-        passwordEdit.setText("");
+        String savedApps = prefs.getString("blocked_apps", "");
+        if (!savedApps.isEmpty()) {
+            String[] apps = savedApps.split(",");
+            for (String app : apps) {
+                selectedApps.add(app);
+            }
+        }
+
+        // Create checkboxes for each social media app
+        for (Map.Entry<String, String> entry : SocialMediaApps.APPS.entrySet()) {
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(entry.getKey());
+            checkBox.setTag(entry.getValue());
+            checkBox.setChecked(selectedApps.contains(entry.getValue()));
+            
+            checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                String packageName = (String) buttonView.getTag();
+                if (isChecked) {
+                    selectedApps.add(packageName);
+                } else {
+                    selectedApps.remove(packageName);
+                }
+            });
+
+            appsContainer.addView(checkBox);
+        }
 
         saveBtn.setOnClickListener(v -> {
             SharedPreferences.Editor editor = prefs.edit();
-            editor.putString("calendar_keywords", keywordsEdit.getText().toString());
-            editor.putString("playlist_uri", playlistEdit.getText().toString());
-            editor.putString("blocked_apps", appsEdit.getText().toString());
+            
+            // Save selected apps
+            String blockedApps = String.join(",", selectedApps);
+            editor.putString("blocked_apps", blockedApps);
+
+            // Save password if changed
             if (!passwordEdit.getText().toString().isEmpty()) {
                 String encoded = PasswordHelper.encode(passwordEdit.getText().toString());
                 editor.putString("lock_password", encoded);
             }
+
             editor.apply();
             Toast.makeText(this, "Zapisano ustawienia", Toast.LENGTH_SHORT).show();
             finish();

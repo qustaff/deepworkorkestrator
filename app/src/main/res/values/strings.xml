@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">deepworkorkestrator</string>
+    <string name="app_name">Deep Work Orkestrator</string>
+    <string name="accessibility_service_description">Ten serwis jest wymagany do blokowania aplikacji podczas Deep Work. Monitoruje aktywność aplikacji i blokuje dostęp do wybranych aplikacji.</string>
 </resources>
