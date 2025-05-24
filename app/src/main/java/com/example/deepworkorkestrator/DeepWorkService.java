@@ -15,6 +15,7 @@ import android.provider.Settings;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -32,7 +33,9 @@ public class DeepWorkService extends Service {
         super.onCreate();
         startForegroundServiceWithNotification();
         setDoNotDisturb();
-        startAppBlocker();
+        // Dodajemy małe opóźnienie przed rozpoczęciem blokowania, żeby Spotify zdążył się uruchomić
+        handler = new Handler();
+        handler.postDelayed(() -> startAppBlocker(), 3000); // 3 sekundy opóźnienia
     }
 
     @Override
@@ -107,15 +110,38 @@ public class DeepWorkService extends Service {
 
     // Pobierz listę pakietów do zablokowania z ustawień (SharedPreferences)
     private Set<String> getBlockedPackages() {
-        return getSharedPreferences("settings", MODE_PRIVATE)
-                .getStringSet("blocked_packages", null);
+        Set<String> blockedPackages = getSharedPreferences("deepwork", MODE_PRIVATE)
+                .getStringSet("blocked_packages", new HashSet<>());
+
+        // Parsowanie z pola tekstowego "blocked_apps" jeśli "blocked_packages" jest puste
+        if (blockedPackages == null || blockedPackages.isEmpty()) {
+            String blockedAppsString = getSharedPreferences("deepwork", MODE_PRIVATE)
+                    .getString("blocked_apps", "");
+            if (!blockedAppsString.isEmpty()) {
+                blockedPackages = new HashSet<>();
+                String[] apps = blockedAppsString.split(",");
+                for (String app : apps) {
+                    blockedPackages.add(app.trim());
+                }
+            }
+        }
+
+        return blockedPackages != null ? blockedPackages : new HashSet<>();
     }
 
     private void checkAndBlockApps() {
         Set<String> blockedPackages = getBlockedPackages();
-        if (blockedPackages == null || blockedPackages.isEmpty()) return;
+        if (blockedPackages.isEmpty()) return;
 
         String topPackage = getTopPackageName();
+
+        // NIE blokuj Spotify ani naszej własnej aplikacji
+        if (topPackage.equals("com.spotify.music") ||
+                topPackage.equals(getPackageName()) ||
+                topPackage.equals("com.example.deepworkorkestrator")) {
+            return;
+        }
+
         if (blockedPackages.contains(topPackage)) {
             Intent lockIntent = new Intent(this, BlockActivity.class);
             lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
