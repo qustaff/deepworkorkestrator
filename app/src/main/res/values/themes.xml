@@ -1,6 +1,5 @@
 <resources>
     <style name="Theme.DeepWorkOrkestrator" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Twoje kolory i opcje -->
         <item name="colorPrimary">@android:color/holo_purple</item>
         <item name="colorPrimaryVariant">@android:color/holo_purple</item>
         <item name="colorOnPrimary">@color/white</item>

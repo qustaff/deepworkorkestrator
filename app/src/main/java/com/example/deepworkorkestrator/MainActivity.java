@@ -1,10 +1,12 @@
 package com.example.deepworkorkestrator;
 
 import android.content.Intent;
+import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -12,7 +14,7 @@ public class MainActivity extends AppCompatActivity {
 
     private Button startButton;
     private Button stopButton;
-    private Button settingsButton;
+    private ImageButton settingsButton;
     private TextView statusText;
 
     @Override

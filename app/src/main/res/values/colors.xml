@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Twoje istniejące kolory -->
     <color name="background_primary">#FAFAFA</color>
     <color name="surface_primary">#FFFFFF</color>
     <color name="text_primary">#1A1A1A</color>
     <color name="text_secondary">#6B7280</color>
     <color name="accent_primary">#6366F1</color>
+
+    <!-- Dodane brakujące kolory -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
 </resources>
