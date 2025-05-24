@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
         stopButton.setOnClickListener(v -> {
             statusText.setText("Deep Work: wyłączone");
 
-            // Zatrzymanie DeepWorkService
+            // Zatrzymanie DeepWorkService i tyle
             Intent serviceIntent = new Intent(this, DeepWorkService.class);
             stopService(serviceIntent);
         });
