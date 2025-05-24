@@ -12,6 +12,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.view.accessibility.AccessibilityManager;
+import android.util.Log;
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -181,12 +184,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isAccessibilityServiceEnabled() {
-        AccessibilityManager am = (AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
-        List<AccessibilityServiceInfo> enabledServices = am.getEnabledAccessibilityServiceList(
-                AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
-        for (AccessibilityServiceInfo service : enabledServices) {
-            if (service.getId().contains(getPackageName())) {
-                return true;
+        int accessibilityEnabled = 0;
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                getContentResolver(),
+                Settings.Secure.ACCESSIBILITY_ENABLED
+            );
+        } catch (Settings.SettingNotFoundException e) {
+            Log.e("MainActivity", "Error checking accessibility settings", e);
+        }
+
+        if (accessibilityEnabled == 1) {
+            String services = Settings.Secure.getString(
+                getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            );
+            if (services != null) {
+                return services.contains(getPackageName() + "/" + AppBlockerAccessibilityService.class.getCanonicalName());
             }
         }
         return false;
@@ -229,13 +243,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startAppBlocker() {
-        // NIE URUCHAMIAMY AccessibilityService ręcznie!
-        // Usługa powinna być aktywowana przez użytkownika w ustawieniach ułatwień dostępu.
+        if (!isAccessibilityServiceEnabled()) {
+            showAccessibilityServiceDialog();
+            return;
+        }
+
+        Intent intent = new Intent(this, AppBlockerAccessibilityService.class);
+        intent.setAction("START_BLOCKING");
+        startService(intent);
+
+        SharedPreferences prefs = getSharedPreferences("deepwork", MODE_PRIVATE);
+        prefs.edit().putBoolean("is_blocking", true).apply();
+
+        Toast.makeText(this, "Blokowanie aplikacji włączone", Toast.LENGTH_SHORT).show();
     }
 
     private void stopAppBlocker() {
-        // NIE ZATRZYMUJEMY AccessibilityService ręcznie!
-        // Usługa powinna być zarządzana przez system Android.
+        Intent intent = new Intent(this, AppBlockerAccessibilityService.class);
+        intent.setAction("STOP_BLOCKING");
+        startService(intent);
+
+        SharedPreferences prefs = getSharedPreferences("deepwork", MODE_PRIVATE);
+        prefs.edit().putBoolean("is_blocking", false).apply();
+
+        Toast.makeText(this, "Blokowanie aplikacji wyłączone", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showAccessibilityServiceDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Wymagane uprawnienia")
+            .setMessage("Aby blokować aplikacje, musisz włączyć usługę dostępności dla DeepWorkOrkestrator. Czy chcesz przejść do ustawień?")
+            .setPositiveButton("Tak", (dialog, which) -> {
+                Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                startActivity(intent);
+            })
+            .setNegativeButton("Nie", null)
+            .show();
     }
 
     private void updateUI() {
