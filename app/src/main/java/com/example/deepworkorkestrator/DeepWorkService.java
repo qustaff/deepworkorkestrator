@@ -1,13 +1,16 @@
 package com.example.deepworkorkestrator;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -23,10 +26,13 @@ public class DeepWorkService extends Service {
 
     private static final String CHANNEL_ID = "deepwork_channel";
     private static final int NOTIFICATION_ID = 1;
+    private static final String ACTION_START_DEEP_WORK = "com.example.deepworkorkestrator.START_DEEP_WORK";
+    private static final String ACTION_STOP_DEEP_WORK = "com.example.deepworkorkestrator.STOP_DEEP_WORK";
 
     private Handler handler;
     private Runnable appCheckRunnable;
     private boolean isRunning = false;
+    private long scheduledEndTime = -1;
 
     @Override
     public void onCreate() {
@@ -39,18 +45,65 @@ public class DeepWorkService extends Service {
     }
 
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null) {
+            String action = intent.getAction();
+            if (ACTION_START_DEEP_WORK.equals(action)) {
+                long endTime = intent.getLongExtra("end_time", -1);
+                if (endTime > 0) {
+                    scheduledEndTime = endTime;
+                    scheduleEndTime(endTime);
+                }
+            } else if (ACTION_STOP_DEEP_WORK.equals(action)) {
+                stopSelf();
+            }
+        }
+        return START_STICKY;
+    }
+
+    private void scheduleEndTime(long endTime) {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager != null) {
+            Intent intent = new Intent(this, DeepWorkService.class);
+            intent.setAction(ACTION_STOP_DEEP_WORK);
+            PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endTime, pendingIntent);
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, endTime, pendingIntent);
+            }
+        }
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         resetDoNotDisturb();
         stopAppBlocker();
         stopForeground(true);
+        
+        // Cancel any scheduled end time
+        if (scheduledEndTime > 0) {
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager != null) {
+                Intent intent = new Intent(this, DeepWorkService.class);
+                intent.setAction(ACTION_STOP_DEEP_WORK);
+                PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.cancel(pendingIntent);
+            }
+        }
     }
 
     private void startForegroundServiceWithNotification() {
         createNotificationChannel();
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Deep Work")
-                .setContentText("Tryb Deep Work jest aktywny")
+                .setContentText(scheduledEndTime > 0 ? 
+                    "Tryb Deep Work jest aktywny do " + formatTime(scheduledEndTime) :
+                    "Tryb Deep Work jest aktywny")
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setOngoing(true)
                 .build();
@@ -168,6 +221,11 @@ public class DeepWorkService extends Service {
             }
         }
         return "";
+    }
+
+    private String formatTime(long timeInMillis) {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault());
+        return sdf.format(new java.util.Date(timeInMillis));
     }
 
     @Nullable

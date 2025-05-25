@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.example.deepworkorkestrator">
 
     <uses-permission android:name="android.permission.READ_CALENDAR"/>
+    <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"/>
@@ -16,6 +18,10 @@
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <uses-permission android:name="android.permission.SYSTEM_OVERLAY_WINDOW" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Queries section for Android 11+ to detect installed packages -->
     <queries>
@@ -54,6 +60,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".CalendarSettingsActivity"
+            android:label="Ustawienia kalendarza"
+            android:exported="false" />
+
+        <activity
             android:name=".BlockActivity"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             android:excludeFromRecents="true"
@@ -81,6 +92,18 @@
             android:name=".DeepWorkService"
             android:enabled="true"
             android:exported="false" />
+
+        <receiver
+            android:name=".CalendarEventReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.PROVIDER_CHANGED" />
+                <action android:name="android.intent.action.EVENT_REMINDER" />
+                <data android:scheme="content" />
+                <data android:host="com.android.calendar" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

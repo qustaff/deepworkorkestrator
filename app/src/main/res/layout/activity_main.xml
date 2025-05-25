@@ -124,4 +124,18 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:tint="@color/text_secondary" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/calendarSettingsButton"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:text="Ustawienia kalendarza"
+        android:textSize="14sp"
+        android:textAllCaps="false"
+        app:cornerRadius="24dp"
+        app:backgroundTint="#F3F4F6"
+        app:layout_constraintTop_toBottomOf="@id/accessibilityButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton stopButton;
     private MaterialButton dndPermissionButton;
     private MaterialButton accessibilityButton;
+    private MaterialButton calendarSettingsButton;
     private ImageButton settingsButton;
     private TextView statusText;
     private NotificationManager notificationManager;
@@ -56,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
         stopButton = findViewById(R.id.stopButton);
         dndPermissionButton = findViewById(R.id.dndPermissionButton);
         accessibilityButton = findViewById(R.id.accessibilityButton);
+        calendarSettingsButton = findViewById(R.id.calendarSettingsButton);
         statusText = findViewById(R.id.statusText);
         settingsButton = findViewById(R.id.settingsButton);
 
@@ -67,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
         stopButton.setOnClickListener(v -> stopDeepWork());
         dndPermissionButton.setOnClickListener(v -> requestDoNotDisturbPermission());
         accessibilityButton.setOnClickListener(v -> requestAccessibilityPermission());
+        calendarSettingsButton.setOnClickListener(v -> openCalendarSettings());
         settingsButton.setOnClickListener(v -> openSettings());
     }
 
@@ -239,6 +242,14 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(this, SettingsActivity.class));
         } catch (Exception e) {
             showToast("Nie można otworzyć ustawień");
+        }
+    }
+
+    private void openCalendarSettings() {
+        try {
+            startActivity(new Intent(this, CalendarSettingsActivity.class));
+        } catch (Exception e) {
+            showToast("Nie można otworzyć ustawień kalendarza");
         }
     }
 
