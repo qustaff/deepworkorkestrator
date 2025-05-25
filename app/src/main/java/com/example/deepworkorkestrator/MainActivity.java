@@ -164,7 +164,7 @@ public class MainActivity extends AppCompatActivity {
         }
         return true;
     }
-
+//w zyciu plakalem tylko 2 razy
     private void requestDoNotDisturbPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!notificationManager.isNotificationPolicyAccessGranted()) {
