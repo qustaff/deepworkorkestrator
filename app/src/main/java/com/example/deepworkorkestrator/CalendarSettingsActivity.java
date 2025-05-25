@@ -42,7 +42,9 @@ public class CalendarSettingsActivity extends AppCompatActivity {
     private Button saveSettingsButton;
     private SharedPreferences sharedPreferences;
     private RecyclerView upcomingEventsRecyclerView;
+    private RecyclerView currentEventsRecyclerView;
     private UpcomingEventsAdapter eventsAdapter;
+    private UpcomingEventsAdapter currentEventsAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,16 +58,26 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         autoStartCheckBox = findViewById(R.id.autoStartCheckBox);
         saveSettingsButton = findViewById(R.id.saveSettingsButton);
         upcomingEventsRecyclerView = findViewById(R.id.upcomingEventsRecyclerView);
+        currentEventsRecyclerView = findViewById(R.id.currentEventsRecyclerView);
 
-        // Setup RecyclerView
+        // Setup RecyclerViews
         upcomingEventsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        currentEventsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         eventsAdapter = new UpcomingEventsAdapter();
+        currentEventsAdapter = new UpcomingEventsAdapter();
         upcomingEventsRecyclerView.setAdapter(eventsAdapter);
+        currentEventsRecyclerView.setAdapter(currentEventsAdapter);
 
-        // Load saved settings
-        eventTitleEditText.setText(sharedPreferences.getString("calendarEventTitle", "Głęboka praca"));
+        // Load saved settings with default values
+        String defaultEventTitle = "Głęboka praca";
+        eventTitleEditText.setText(sharedPreferences.getString("calendarEventTitle", defaultEventTitle));
         eventDescriptionEditText.setText(sharedPreferences.getString("calendarEventDescription", ""));
         autoStartCheckBox.setChecked(sharedPreferences.getBoolean("autoStartFromCalendar", false));
+
+        // If no title is set, set the default
+        if (!sharedPreferences.contains("calendarEventTitle")) {
+            sharedPreferences.edit().putString("calendarEventTitle", defaultEventTitle).apply();
+        }
 
         saveSettingsButton.setOnClickListener(v -> saveSettings());
 
@@ -81,7 +93,7 @@ public class CalendarSettingsActivity extends AppCompatActivity {
                     },
                     CALENDAR_PERMISSION_REQUEST);
         } else {
-            loadUpcomingEvents();
+            loadEvents();
         }
     }
 
@@ -90,7 +102,7 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CALENDAR_PERMISSION_REQUEST) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadUpcomingEvents();
+                loadEvents();
             } else {
                 Toast.makeText(this, "Wymagane uprawnienia do kalendarza", Toast.LENGTH_LONG).show();
             }
@@ -102,13 +114,15 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         super.onResume();
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
                 == PackageManager.PERMISSION_GRANTED) {
-            loadUpcomingEvents();
+            loadEvents();
         }
     }
 
-    private void loadUpcomingEvents() {
-        List<CalendarEvent> events = getUpcomingDeepWorkEvents(this);
-        eventsAdapter.setEvents(events);
+    private void loadEvents() {
+        List<CalendarEvent> upcomingEvents = getUpcomingDeepWorkEvents(this);
+        List<CalendarEvent> currentEvents = getCurrentDeepWorkEvents(this);
+        eventsAdapter.setEvents(upcomingEvents);
+        currentEventsAdapter.setEvents(currentEvents);
     }
 
     private void saveSettings() {
@@ -119,7 +133,7 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         editor.apply();
 
         Toast.makeText(this, "Ustawienia zapisane", Toast.LENGTH_SHORT).show();
-        loadUpcomingEvents();
+        loadEvents();
     }
 
     public static List<CalendarEvent> getUpcomingDeepWorkEvents(Context context) {
@@ -141,6 +155,54 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         String[] selectionArgs = new String[]{
                 "%" + eventTitle + "%",
                 String.valueOf(System.currentTimeMillis())
+        };
+
+        Cursor cursor = contentResolver.query(
+                CalendarContract.Events.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                CalendarContract.Events.DTSTART + " ASC"
+        );
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(0);
+                String title = cursor.getString(1);
+                String description = cursor.getString(2);
+                long startTime = cursor.getLong(3);
+                long endTime = cursor.getLong(4);
+
+                events.add(new CalendarEvent(id, title, description, startTime, endTime));
+            }
+            cursor.close();
+        }
+
+        return events;
+    }
+
+    public static List<CalendarEvent> getCurrentDeepWorkEvents(Context context) {
+        List<CalendarEvent> events = new ArrayList<>();
+        ContentResolver contentResolver = context.getContentResolver();
+        SharedPreferences prefs = context.getSharedPreferences("DeepWorkSettings", Context.MODE_PRIVATE);
+        String eventTitle = prefs.getString("calendarEventTitle", "Głęboka praca");
+        long currentTime = System.currentTimeMillis();
+
+        String[] projection = new String[]{
+                CalendarContract.Events._ID,
+                CalendarContract.Events.TITLE,
+                CalendarContract.Events.DESCRIPTION,
+                CalendarContract.Events.DTSTART,
+                CalendarContract.Events.DTEND
+        };
+
+        String selection = CalendarContract.Events.TITLE + " LIKE ? AND " +
+                CalendarContract.Events.DTSTART + " <= ? AND " +
+                CalendarContract.Events.DTEND + " >= ?";
+        String[] selectionArgs = new String[]{
+                "%" + eventTitle + "%",
+                String.valueOf(currentTime),
+                String.valueOf(currentTime)
         };
 
         Cursor cursor = contentResolver.query(

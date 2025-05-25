@@ -1,5 +1,6 @@
 package com.example.deepworkorkestrator;
 
+import android.annotation.SuppressLint;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.net.Uri;
@@ -15,6 +16,11 @@ import android.view.accessibility.AccessibilityManager;
 import android.util.Log;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.content.IntentFilter;
+import android.content.BroadcastReceiver;
+import android.os.Handler;
+import android.os.Looper;
+import android.content.Context;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -34,6 +40,9 @@ public class MainActivity extends AppCompatActivity {
     private NotificationManager notificationManager;
     private boolean isDeepWorkActive = false;
     private AppBlocker appBlocker;
+    private CalendarEventReceiver calendarReceiver;
+    private Handler calendarCheckHandler;
+    private Runnable calendarCheckRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +53,12 @@ public class MainActivity extends AppCompatActivity {
         setupClickListeners();
         appBlocker = new AppBlocker(this);
         updateUI();
+        
+        // Rejestracja receivera kalendarza
+        registerCalendarReceiver();
+        
+        // Uruchomienie sprawdzania kalendarza
+        startCalendarCheck();
     }
 
     @Override
@@ -350,8 +365,79 @@ public class MainActivity extends AppCompatActivity {
         return isDeepWorkActive;
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private void registerCalendarReceiver() {
+        if (calendarReceiver == null) {
+            calendarReceiver = new CalendarEventReceiver();
+            IntentFilter filter = new IntentFilter();
+            filter.addAction("android.intent.action.PROVIDER_CHANGED");
+            filter.addAction("android.intent.action.EVENT_REMINDER");
+            filter.addAction("android.intent.action.TIME_TICK");
+            filter.addAction("android.intent.action.TIME_SET");
+            filter.addAction("android.intent.action.DATE_CHANGED");
+            filter.addAction("android.intent.action.BOOT_COMPLETED");
+            filter.addDataScheme("content");
+            registerReceiver(calendarReceiver, filter);
+            Log.d("MainActivity", "Calendar receiver registered");
+        }
+    }
+
+    private void startCalendarCheck() {
+        calendarCheckHandler = new Handler(Looper.getMainLooper());
+        calendarCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkCalendarEvents();
+                calendarCheckHandler.postDelayed(this, 60000); // Sprawdzaj co minutę
+            }
+        };
+        calendarCheckHandler.post(calendarCheckRunnable);
+    }
+
+    private void checkCalendarEvents() {
+        SharedPreferences prefs = getSharedPreferences("DeepWorkSettings", Context.MODE_PRIVATE);
+        boolean autoStartFromCalendar = prefs.getBoolean("autoStartFromCalendar", false);
+        
+        if (!autoStartFromCalendar) {
+            return;
+        }
+
+        try {
+            List<CalendarSettingsActivity.CalendarEvent> events = 
+                CalendarSettingsActivity.getUpcomingDeepWorkEvents(this);
+
+            if (!events.isEmpty()) {
+                CalendarSettingsActivity.CalendarEvent nextEvent = events.get(0);
+                long currentTime = System.currentTimeMillis();
+                
+                Log.d("MainActivity", "Checking calendar event: " + nextEvent.title + 
+                          " Start: " + new java.util.Date(nextEvent.startTime) + 
+                          " Current: " + new java.util.Date(currentTime));
+                
+                if (nextEvent.startTime <= currentTime + 60000 && nextEvent.startTime > currentTime - 60000) {
+                    Log.d("MainActivity", "Starting Deep Work mode for event: " + nextEvent.title);
+                    startDeepWork();
+                }
+            }
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error checking calendar events", e);
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (calendarCheckHandler != null && calendarCheckRunnable != null) {
+            calendarCheckHandler.removeCallbacks(calendarCheckRunnable);
+        }
+        if (calendarReceiver != null) {
+            try {
+                unregisterReceiver(calendarReceiver);
+                calendarReceiver = null;
+                Log.d("MainActivity", "Calendar receiver unregistered");
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error unregistering calendar receiver", e);
+            }
+        }
     }
 }

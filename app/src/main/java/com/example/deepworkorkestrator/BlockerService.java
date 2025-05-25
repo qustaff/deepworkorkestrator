@@ -1,5 +1,6 @@
 package com.example.deepworkorkestrator;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -55,6 +56,7 @@ public class BlockerService extends Service {
         }
     };
 
+    @SuppressLint("ForegroundServiceType")
     @Override
     public void onCreate() {
         super.onCreate();
