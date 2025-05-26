@@ -41,10 +41,6 @@ public class CalendarSettingsActivity extends AppCompatActivity {
     private CheckBox autoStartCheckBox;
     private Button saveSettingsButton;
     private SharedPreferences sharedPreferences;
-    private RecyclerView upcomingEventsRecyclerView;
-    private RecyclerView currentEventsRecyclerView;
-    private UpcomingEventsAdapter eventsAdapter;
-    private UpcomingEventsAdapter currentEventsAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,16 +53,6 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         eventDescriptionEditText = findViewById(R.id.eventDescriptionEditText);
         autoStartCheckBox = findViewById(R.id.autoStartCheckBox);
         saveSettingsButton = findViewById(R.id.saveSettingsButton);
-        upcomingEventsRecyclerView = findViewById(R.id.upcomingEventsRecyclerView);
-        currentEventsRecyclerView = findViewById(R.id.currentEventsRecyclerView);
-
-        // Setup RecyclerViews
-        upcomingEventsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        currentEventsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        eventsAdapter = new UpcomingEventsAdapter();
-        currentEventsAdapter = new UpcomingEventsAdapter();
-        upcomingEventsRecyclerView.setAdapter(eventsAdapter);
-        currentEventsRecyclerView.setAdapter(currentEventsAdapter);
 
         // Load saved settings with default values
         String defaultEventTitle = "Głęboka praca";
@@ -92,8 +78,6 @@ public class CalendarSettingsActivity extends AppCompatActivity {
                         Manifest.permission.WRITE_CALENDAR
                     },
                     CALENDAR_PERMISSION_REQUEST);
-        } else {
-            loadEvents();
         }
     }
 
@@ -102,27 +86,11 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CALENDAR_PERMISSION_REQUEST) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadEvents();
+                // Permissions granted
             } else {
                 Toast.makeText(this, "Wymagane uprawnienia do kalendarza", Toast.LENGTH_LONG).show();
             }
         }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
-                == PackageManager.PERMISSION_GRANTED) {
-            loadEvents();
-        }
-    }
-
-    private void loadEvents() {
-        List<CalendarEvent> upcomingEvents = getUpcomingDeepWorkEvents(this);
-        List<CalendarEvent> currentEvents = getCurrentDeepWorkEvents(this);
-        eventsAdapter.setEvents(upcomingEvents);
-        currentEventsAdapter.setEvents(currentEvents);
     }
 
     private void saveSettings() {
@@ -133,7 +101,6 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         editor.apply();
 
         Toast.makeText(this, "Ustawienia zapisane", Toast.LENGTH_SHORT).show();
-        loadEvents();
     }
 
     public static List<CalendarEvent> getUpcomingDeepWorkEvents(Context context) {
@@ -229,7 +196,23 @@ public class CalendarSettingsActivity extends AppCompatActivity {
         return events;
     }
 
-    private class UpcomingEventsAdapter extends RecyclerView.Adapter<UpcomingEventsAdapter.EventViewHolder> {
+    public static class CalendarEvent {
+        public final long id;
+        public final String title;
+        public final String description;
+        public final long startTime;
+        public final long endTime;
+
+        public CalendarEvent(long id, String title, String description, long startTime, long endTime) {
+            this.id = id;
+            this.title = title;
+            this.description = description;
+            this.startTime = startTime;
+            this.endTime = endTime;
+        }
+    }
+
+    public static class UpcomingEventsAdapter extends RecyclerView.Adapter<UpcomingEventsAdapter.EventViewHolder> {
         private List<CalendarEvent> events = new ArrayList<>();
 
         public void setEvents(List<CalendarEvent> events) {
@@ -239,7 +222,8 @@ public class CalendarSettingsActivity extends AppCompatActivity {
 
         @Override
         public EventViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View view = getLayoutInflater().inflate(R.layout.item_upcoming_event, parent, false);
+            View view = android.view.LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_upcoming_event, parent, false);
             return new EventViewHolder(view);
         }
 
@@ -278,30 +262,14 @@ public class CalendarSettingsActivity extends AppCompatActivity {
                         Intent intent = new Intent(Intent.ACTION_VIEW);
                         intent.setData(ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.id));
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivity(intent);
+                        itemView.getContext().startActivity(intent);
                     } catch (Exception e) {
                         Log.e(TAG, "Error opening calendar", e);
-                        Toast.makeText(CalendarSettingsActivity.this, 
+                        Toast.makeText(itemView.getContext(), 
                             "Nie udało się otworzyć kalendarza", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
-        }
-    }
-
-    public static class CalendarEvent {
-        public final long id;
-        public final String title;
-        public final String description;
-        public final long startTime;
-        public final long endTime;
-
-        public CalendarEvent(long id, String title, String description, long startTime, long endTime) {
-            this.id = id;
-            this.title = title;
-            this.description = description;
-            this.startTime = startTime;
-            this.endTime = endTime;
         }
     }
 } 

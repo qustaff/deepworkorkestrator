@@ -3,6 +3,7 @@ package com.example.deepworkorkestrator;
 import android.annotation.SuppressLint;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,8 +22,13 @@ import android.content.BroadcastReceiver;
 import android.os.Handler;
 import android.os.Looper;
 import android.content.Context;
+import android.Manifest;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 
@@ -43,6 +49,10 @@ public class MainActivity extends AppCompatActivity {
     private CalendarEventReceiver calendarReceiver;
     private Handler calendarCheckHandler;
     private Runnable calendarCheckRunnable;
+    private RecyclerView currentEventsRecyclerView;
+    private RecyclerView upcomingEventsRecyclerView;
+    private CalendarSettingsActivity.UpcomingEventsAdapter currentEventsAdapter;
+    private CalendarSettingsActivity.UpcomingEventsAdapter upcomingEventsAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
         initializeViews();
         setupClickListeners();
+        setupRecyclerViews();
         appBlocker = new AppBlocker(this);
         updateUI();
         
@@ -61,10 +72,40 @@ public class MainActivity extends AppCompatActivity {
         startCalendarCheck();
     }
 
+    private void setupRecyclerViews() {
+        currentEventsRecyclerView = findViewById(R.id.currentEventsRecyclerView);
+        upcomingEventsRecyclerView = findViewById(R.id.upcomingEventsRecyclerView);
+
+        currentEventsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        upcomingEventsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        currentEventsAdapter = new CalendarSettingsActivity.UpcomingEventsAdapter();
+        upcomingEventsAdapter = new CalendarSettingsActivity.UpcomingEventsAdapter();
+
+        currentEventsRecyclerView.setAdapter(currentEventsAdapter);
+        upcomingEventsRecyclerView.setAdapter(upcomingEventsAdapter);
+
+        updateEvents();
+    }
+
+    private void updateEvents() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
+                == PackageManager.PERMISSION_GRANTED) {
+            List<CalendarSettingsActivity.CalendarEvent> currentEvents = 
+                CalendarSettingsActivity.getCurrentDeepWorkEvents(this);
+            List<CalendarSettingsActivity.CalendarEvent> upcomingEvents = 
+                CalendarSettingsActivity.getUpcomingDeepWorkEvents(this);
+
+            currentEventsAdapter.setEvents(currentEvents);
+            upcomingEventsAdapter.setEvents(upcomingEvents);
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         updateUI();
+        updateEvents();
     }
 
     private void initializeViews() {
@@ -395,6 +436,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkCalendarEvents() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
         SharedPreferences prefs = getSharedPreferences("DeepWorkSettings", Context.MODE_PRIVATE);
         boolean autoStartFromCalendar = prefs.getBoolean("autoStartFromCalendar", false);
         
@@ -405,17 +451,15 @@ public class MainActivity extends AppCompatActivity {
         try {
             List<CalendarSettingsActivity.CalendarEvent> events = 
                 CalendarSettingsActivity.getUpcomingDeepWorkEvents(this);
+            
+            // Aktualizuj widoki wydarzeń
+            updateEvents();
 
             if (!events.isEmpty()) {
                 CalendarSettingsActivity.CalendarEvent nextEvent = events.get(0);
                 long currentTime = System.currentTimeMillis();
                 
-                Log.d("MainActivity", "Checking calendar event: " + nextEvent.title + 
-                          " Start: " + new java.util.Date(nextEvent.startTime) + 
-                          " Current: " + new java.util.Date(currentTime));
-                
                 if (nextEvent.startTime <= currentTime + 60000 && nextEvent.startTime > currentTime - 60000) {
-                    Log.d("MainActivity", "Starting Deep Work mode for event: " + nextEvent.title);
                     startDeepWork();
                 }
             }

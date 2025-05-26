@@ -4,9 +4,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
+    android:layout_marginBottom="8dp"
     app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
+    app:cardBackgroundColor="@color/background_primary"
+    app:cardElevation="2dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,26 +19,27 @@
             android:id="@+id/eventTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="4dp"/>
 
         <TextView
             android:id="@+id/eventTime"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textSize="16sp"
-            android:textColor="#666666"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
             android:layout_marginBottom="8dp"/>
 
         <Button
             android:id="@+id/openCalendarButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:text="Otwórz w kalendarzu"
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+            android:textSize="12sp"
+            android:textAllCaps="false"
+            style="@style/Widget.Material3.Button.TextButton"/>
 
     </LinearLayout>
 
