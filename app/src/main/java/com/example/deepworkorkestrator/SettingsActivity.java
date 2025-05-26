@@ -4,10 +4,10 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.content.SharedPreferences;
 import android.widget.Toast;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Map;
@@ -42,10 +42,12 @@ public class SettingsActivity extends Activity {
 
         // Create checkboxes for each social media app
         for (Map.Entry<String, String> entry : SocialMediaApps.APPS.entrySet()) {
-            CheckBox checkBox = new CheckBox(this);
+            MaterialCheckBox checkBox = new MaterialCheckBox(this);
             checkBox.setText(entry.getKey());
             checkBox.setTag(entry.getValue());
             checkBox.setChecked(selectedApps.contains(entry.getValue()));
+            checkBox.setTextColor(getResources().getColor(android.R.color.black));
+            checkBox.setButtonTintList(getResources().getColorStateList(android.R.color.black));
             
             checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 String packageName = (String) buttonView.getTag();

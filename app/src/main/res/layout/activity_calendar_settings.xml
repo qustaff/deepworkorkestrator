@@ -3,6 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="@color/background_primary"
     android:padding="16dp">
 
     <TextView
@@ -11,6 +12,7 @@
         android:text="Ustawienia integracji z kalendarzem"
         android:textSize="24sp"
         android:textStyle="bold"
+        android:textColor="@color/black"
         android:layout_marginBottom="24dp"/>
 
     <com.google.android.material.textfield.TextInputLayout
@@ -23,6 +25,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Tytuł wydarzenia w kalendarzu"
+            android:background="@color/background_secondary"
             android:inputType="text"/>
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -37,6 +40,7 @@
             android:layout_height="wrap_content"
             android:hint="Opis wydarzenia (opcjonalnie)"
             android:inputType="textMultiLine"
+            android:background="@color/background_secondary"
             android:minLines="2"/>
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -44,6 +48,7 @@
         android:id="@+id/autoStartCheckBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:textColor="@color/black"
         android:text="Automatycznie uruchamiaj tryb Deep Work na podstawie kalendarza"
         android:layout_marginBottom="24dp"/>
 
