@@ -53,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView upcomingEventsRecyclerView;
     private CalendarSettingsActivity.UpcomingEventsAdapter currentEventsAdapter;
     private CalendarSettingsActivity.UpcomingEventsAdapter upcomingEventsAdapter;
+    private TextView currentEventsTitle;
+    private TextView upcomingEventsTitle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,15 +92,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateEvents() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
-                == PackageManager.PERMISSION_GRANTED) {
-            List<CalendarSettingsActivity.CalendarEvent> currentEvents = 
-                CalendarSettingsActivity.getCurrentDeepWorkEvents(this);
-            List<CalendarSettingsActivity.CalendarEvent> upcomingEvents = 
-                CalendarSettingsActivity.getUpcomingDeepWorkEvents(this);
-
-            currentEventsAdapter.setEvents(currentEvents);
-            upcomingEventsAdapter.setEvents(upcomingEvents);
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.d("MainActivity", "Brak uprawnień do kalendarza");
+            currentEventsTitle.setVisibility(View.GONE);
+            upcomingEventsTitle.setVisibility(View.GONE);
+            return;
         }
+
+        List<CalendarSettingsActivity.CalendarEvent> currentEvents = 
+            CalendarSettingsActivity.getCurrentDeepWorkEvents(this);
+        List<CalendarSettingsActivity.CalendarEvent> upcomingEvents = 
+            CalendarSettingsActivity.getUpcomingDeepWorkEvents(this);
+
+        Log.d("MainActivity", "Liczba aktualnych wydarzeń: " + currentEvents.size());
+        Log.d("MainActivity", "Liczba nadchodzących wydarzeń: " + upcomingEvents.size());
+
+        currentEventsAdapter.setEvents(currentEvents);
+        upcomingEventsAdapter.setEvents(upcomingEvents);
+
+        // Show/hide section titles based on whether there are events
+        currentEventsTitle.setVisibility(currentEvents.isEmpty() ? View.GONE : View.VISIBLE);
+        upcomingEventsTitle.setVisibility(upcomingEvents.isEmpty() ? View.GONE : View.VISIBLE);
+
+        Log.d("MainActivity", "Widoczność tytułu aktualnych wydarzeń: " + 
+            (currentEventsTitle.getVisibility() == View.VISIBLE ? "VISIBLE" : "GONE"));
+        Log.d("MainActivity", "Widoczność tytułu nadchodzących wydarzeń: " + 
+            (upcomingEventsTitle.getVisibility() == View.VISIBLE ? "VISIBLE" : "GONE"));
     }
 
     @Override
@@ -116,8 +135,9 @@ public class MainActivity extends AppCompatActivity {
         calendarSettingsButton = findViewById(R.id.calendarSettingsButton);
         statusText = findViewById(R.id.statusText);
         settingsButton = findViewById(R.id.settingsButton);
-
-        notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        currentEventsTitle = findViewById(R.id.currentEventsTitle);
+        upcomingEventsTitle = findViewById(R.id.upcomingEventsTitle);
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
     }
 
     private void setupClickListeners() {

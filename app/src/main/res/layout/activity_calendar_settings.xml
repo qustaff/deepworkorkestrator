@@ -26,6 +26,8 @@
             android:layout_height="wrap_content"
             android:hint="Tytuł wydarzenia w kalendarzu"
             android:background="@color/background_secondary"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
             android:inputType="text"/>
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -40,6 +42,8 @@
             android:layout_height="wrap_content"
             android:hint="Opis wydarzenia (opcjonalnie)"
             android:inputType="textMultiLine"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
             android:background="@color/background_secondary"
             android:minLines="2"/>
     </com.google.android.material.textfield.TextInputLayout>
