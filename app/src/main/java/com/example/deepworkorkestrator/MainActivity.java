@@ -187,19 +187,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopDeepWork() {
         try {
-            getSharedPreferences("deepwork", MODE_PRIVATE)
-                .edit().putBoolean("is_blocking", false).apply();
-            disableDoNotDisturbMode();
-            isDeepWorkActive = false;
-            updateStatusText("Deep Work: wyłączone");
-            stopDeepWorkService();
-            stopAppBlocker();
-            showToast("Deep Work zatrzymane. Tryb 'Nie przeszkadzać' wyłączony");
-        } catch (Exception e) {
-            handleError("Błąd podczas zatrzymywania Deep Work", e);
-        }
+            // Set Deep Work as inactive in preferences
+            SharedPreferences prefs = getSharedPreferences("deepwork", MODE_PRIVATE);
+            prefs.edit().putBoolean("is_blocking", false).apply();
 
-        updateUI();
+            // Disable Do Not Disturb mode
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (notificationManager.isNotificationPolicyAccessGranted()) {
+                    notificationManager.setInterruptionFilter(
+                        NotificationManager.INTERRUPTION_FILTER_ALL
+                    );
+                }
+            }
+
+            // Stop app blocker
+            Intent blockerIntent = new Intent(this, AppBlockerAccessibilityService.class);
+            blockerIntent.setAction("STOP_BLOCKING");
+            startService(blockerIntent);
+
+            // Update UI
+            isDeepWorkActive = false;
+            updateUI();
+            
+            Toast.makeText(this, "Tryb głębokiej pracy zakończony", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error stopping Deep Work mode", e);
+        }
     }
 
     private void launchSpotifyPlaylist() {
@@ -232,18 +245,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void stopDeepWorkService() {
-        Intent serviceIntent = new Intent(this, DeepWorkService.class);
-        stopService(serviceIntent);
-    }
-
     private boolean hasDoNotDisturbPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             return notificationManager.isNotificationPolicyAccessGranted();
         }
         return true;
     }
-//w zyciu plakalem tylko 2 razy
+
     private void requestDoNotDisturbPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!notificationManager.isNotificationPolicyAccessGranted()) {
@@ -469,14 +477,27 @@ public class MainActivity extends AppCompatActivity {
         }
 
         try {
-            List<CalendarSettingsActivity.CalendarEvent> events = 
+            // Check current events first
+            List<CalendarSettingsActivity.CalendarEvent> currentEvents = 
+                CalendarSettingsActivity.getCurrentDeepWorkEvents(this);
+            
+            // If no current events and blocking is active, stop blocking
+            if (currentEvents.isEmpty()) {
+                SharedPreferences deepWorkPrefs = getSharedPreferences("deepwork", MODE_PRIVATE);
+                if (deepWorkPrefs.getBoolean("is_blocking", false)) {
+                    stopDeepWork();
+                }
+            }
+            
+            // Then check upcoming events
+            List<CalendarSettingsActivity.CalendarEvent> upcomingEvents = 
                 CalendarSettingsActivity.getUpcomingDeepWorkEvents(this);
             
             // Aktualizuj widoki wydarzeń
             updateEvents();
 
-            if (!events.isEmpty()) {
-                CalendarSettingsActivity.CalendarEvent nextEvent = events.get(0);
+            if (!upcomingEvents.isEmpty()) {
+                CalendarSettingsActivity.CalendarEvent nextEvent = upcomingEvents.get(0);
                 long currentTime = System.currentTimeMillis();
                 
                 if (nextEvent.startTime <= currentTime + 60000 && nextEvent.startTime > currentTime - 60000) {

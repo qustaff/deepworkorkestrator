@@ -11,7 +11,7 @@ public class SocialMediaApps {
         put("Snapchat", "com.snapchat.android");
         put("Twitter", "com.twitter.android");
         put("WhatsApp", "com.whatsapp");
-        put("Messenger", "com.facebook.katana");
+        put("Messenger", "com.facebook.orca");
         put("LinkedIn", "com.linkedin.android");
         put("Pinterest", "com.pinterest");
         put("Reddit", "com.reddit.frontpage");

@@ -62,6 +62,20 @@ public class CalendarEventReceiver extends BroadcastReceiver {
         }
 
         try {
+            // Check current events first to see if any have ended
+            List<CalendarSettingsActivity.CalendarEvent> currentEvents = 
+                CalendarSettingsActivity.getCurrentDeepWorkEvents(context);
+            
+            if (currentEvents.isEmpty()) {
+                // No current events, check if we need to stop blocking
+                SharedPreferences deepWorkPrefs = context.getSharedPreferences("deepwork", Context.MODE_PRIVATE);
+                if (deepWorkPrefs.getBoolean("is_blocking", false)) {
+                    Log.d(TAG, "No current events found, stopping Deep Work mode");
+                    stopDeepWorkMode(context);
+                }
+            }
+
+            // Then check for upcoming events
             List<CalendarSettingsActivity.CalendarEvent> events = 
                 CalendarSettingsActivity.getUpcomingDeepWorkEvents(context);
 
@@ -153,6 +167,38 @@ public class CalendarEventReceiver extends BroadcastReceiver {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error in startDeepWorkMode", e);
+        }
+    }
+
+    private void stopDeepWorkMode(Context context) {
+        Log.d(TAG, "=== Stopping Deep Work mode ===");
+        
+        try {
+            // Set Deep Work as inactive in preferences
+            SharedPreferences prefs = context.getSharedPreferences("deepwork", Context.MODE_PRIVATE);
+            prefs.edit().putBoolean("is_blocking", false).apply();
+            Log.d(TAG, "Deep Work mode disabled in preferences");
+
+            // Disable Do Not Disturb mode
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                NotificationManager notificationManager = 
+                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                if (notificationManager != null && notificationManager.isNotificationPolicyAccessGranted()) {
+                    notificationManager.setInterruptionFilter(
+                        NotificationManager.INTERRUPTION_FILTER_ALL
+                    );
+                    Log.d(TAG, "Do Not Disturb mode disabled");
+                }
+            }
+
+            // Stop app blocker
+            Intent blockerIntent = new Intent(context, AppBlockerAccessibilityService.class);
+            blockerIntent.setAction("STOP_BLOCKING");
+            context.startService(blockerIntent);
+            Log.d(TAG, "App blocker stopped");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in stopDeepWorkMode", e);
         }
     }
 } 
